@@ -17,7 +17,6 @@ echo
 echo "Sharing files from: $CALL_DIR" 
 echo "IP $firstip"
 
-./mongoose-fs $CALL_DIR
-
+$SCRIPT_RELATIVE_PATH/mongoose-fs $CALL_DIR
 
 
