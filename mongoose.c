@@ -7166,7 +7166,7 @@ static void mg_print_dir_entry(struct mg_connection *nc, const char *file_name,
   struct mg_str href;
 
   if (is_dir) {
-    snprintf(size, sizeof(size), "%s", "[DIRECTORY]");
+    snprintf(size, sizeof(size), "%s", " ");
   } else {
     /*
      * We use (double) cast below because MSVC 6 compiler cannot
@@ -7264,49 +7264,54 @@ static void mg_send_directory_listing(struct mg_connection *nc, const char *dir,
     }
   }
 
-  if(parent_uri){
-    mg_printf_http_chunk(
-      nc,
-      "<html><head><title>Index of %.*s</title>%s%s"
-      "<style>th,td {text-align: left; padding-right: 1em; "
-      "font-family: monospace; }</style></head>\n"
-      "<body>"
-      "<a href=\"%s\">&uarr; Go to parent folder</a>"      
-      "<h2>Browsing: %s</h2>\n"
-      "<form method=\"POST\" action=\"/upload\" enctype=\"multipart/form-data\">"
-      "<input type=\"file\" name=\"file\">"
-      "<input type=\"submit\" value=\"Upload\">"
-      "</form>"
-      "<table cellpadding=0><thead>"
-      "<tr><th><a href=# rel=0>Name</a></th><th>"
-      "<a href=# rel=1>Modified</a</th>"
-      "<th><a href=# rel=2>Size</a></th></tr>"
-      "<tr><td colspan=3><hr></td></tr>\n"
-      "</thead>\n"
-      "<tbody id=tb>",
-      (int) hm->uri.len, hm->uri.p, sort_js_code, sort_js_code2, parent_uri, dir);
+  char btn_style_full[] = ".btn-up{opacity:1;}";
+
+  char btn_style_blank[] = ".btn-up{opacity:0.2;}";
+  char *btn_style;
+
+  if(!parent_uri){
+    parent_uri = malloc(2);
+    parent_uri[0] = '#';
+    parent_uri[1] = 0;   
+    btn_style = btn_style_blank;
+
   }else{
-      mg_printf_http_chunk(
-      nc,
-      "<html><head><title>Index of %.*s</title>%s%s"
-      "<style>th,td {text-align: left; padding-right: 1em; "
-      "font-family: monospace; }</style></head>\n"
-      "<body>"
-      "<p>..</p>"      
-      "<h2>Browsing: %s</h2>\n"
-      "<form method=\"POST\" action=\"/upload\" enctype=\"multipart/form-data\">"
-      "<input type=\"file\" name=\"file\">"
-      "<input type=\"submit\" value=\"Upload\">"
-      "</form>"
-      "<table cellpadding=0><thead>"
-      "<tr><th><a href=# rel=0>Name</a></th><th>"
-      "<a href=# rel=1>Modified</a</th>"
-      "<th><a href=# rel=2>Size</a></th></tr>"
-      "<tr><td colspan=3><hr></td></tr>\n"
-      "</thead>\n"
-      "<tbody id=tb>",
-      (int) hm->uri.len, hm->uri.p, sort_js_code, sort_js_code2, dir);
+    btn_style = btn_style_full;
   }
+
+  mg_printf_http_chunk(
+    nc,
+    "<html><head><title>Index of %.*s</title>%s%s"
+    "<style>"
+    "body{font-family:Arial;}"
+    "table{min-width:60%;}"
+    "th,td {text-align: left; padding-right: 1em;padding:5px;}"
+    "th a, td a{color:#302c29;text-decoration:none;}"
+    "td a{font-weight: bold;}"
+    "td:nth-child(1){min-width:50vw;}"
+    "tr:hover{background-color:#BDBDBD;}"
+    ".btn{background-color:#7892c2;border-radius:6px;"
+	  "border:1px solid #4e6096;display:inline-block;color:#ffffff;"
+    "padding:6px 20px;text-decoration:none;}"
+    ".btn:hover {background-color:#476e9e;}"
+    "%s\n"
+    ".dirpath span{margin-left: 30px;color:#302c29;}"
+    "</style></head>\n"
+    "<body>" 
+    "<p class=\"dirpath\"><a href=\"%s\" class=\"btn btn-up\">&uarr; Up One Level</a><span>%s</span></p>"
+    "<form method=\"POST\" action=\"/upload\" enctype=\"multipart/form-data\">"
+    "<input type=\"file\" name=\"file\">"
+    "<input type=\"submit\" value=\"Upload\" class=\"btn\">"
+    "</form>"
+    "<table cellpadding=0><thead>"
+    "<tr><th><a href=# rel=0>Name</a></th><th>"
+    "<a href=# rel=1>Modified</a</th>"
+    "<th><a href=# rel=2>Size</a></th></tr>"
+    "<tr><td colspan=3><hr></td></tr>\n"
+    "</thead>\n"
+    "<tbody id=tb>",
+    (int) hm->uri.len, hm->uri.p, sort_js_code, sort_js_code2, btn_style, parent_uri, dir);
+
 
   free(parent_uri);
   int di = 0;
@@ -7321,11 +7326,8 @@ static void mg_send_directory_listing(struct mg_connection *nc, const char *dir,
 
   mg_scan_directory(nc, dir, opts, mg_print_dir_entry);
   mg_printf_http_chunk(nc,
-                       "</tbody><tr><td colspan=3><hr></td></tr>\n"
-                       "</table>\n"
-                       "<address>%s</address>\n"
-                       "</body></html>",
-                       mg_version_header);
+                       "</tbody></table>\n"                       
+                       "</body></html>");
   mg_send_http_chunk(nc, "", 0);
   /* TODO(rojer): Remove when cesanta/dev/issues/197 is fixed. */
   nc->flags |= MG_F_SEND_AND_CLOSE;
