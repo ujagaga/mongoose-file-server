@@ -7246,6 +7246,22 @@ static void mg_send_directory_listing(struct mg_connection *nc, const char *dir,
       "srt(tb, sc, so, true);"
       "}"
       "</script>";
+  static const char *upload_js_code = "<script>"
+      "var fileObj;let dropArea=document.getElementById('drop-area');"
+      ";['dragenter','dragover','dragleave','drop'].forEach(eventName=>{"
+	    "dropArea.addEventListener(eventName,preventDefaults,false)});"
+      ";['dragenter','dragover'].forEach(eventName=>{dropArea.addEventListener(eventName,highlight,false)});"
+      ";['dragleave','drop'].forEach(eventName=>{dropArea.addEventListener(eventName,unhighlight,false)});"
+	    "dropArea.addEventListener('drop',handleDrop,false);"
+      "function preventDefaults(e){e.preventDefault();e.stopPropagation();}"
+      "function highlight(e){dropArea.classList.add('highlight')}"
+      "function unhighlight(e){dropArea.classList.remove('highlight')}"
+      "function handleDrop(e){let dt=e.dataTransfer;fileObj=dt.files[0];\n"
+      "dropArea.innerHTML='Uploading <span class=\"animate\">'+fileObj.name+'</span>';uploadFile(fileObj);}\n"
+      "function uploadFile(file){let url='/upload';let formData=new FormData();formData.append('file',fileObj);\n"
+      "fetch(url,{method:'POST',body:formData}).then(()=>{window.location.reload(false);})\n"
+	    ".catch(()=>{dropArea.innerHTML='Error uploading file.';console.log('Error uploading file.');})}"
+      "</script>";      
 
   mg_send_response_line(nc, 200, opts->extra_headers);
   mg_printf(nc, "%s: %s\r\n%s: %s\r\n\r\n", "Transfer-Encoding", "chunked",
@@ -7264,45 +7280,43 @@ static void mg_send_directory_listing(struct mg_connection *nc, const char *dir,
     }
   }
 
-  char btn_style_full[] = ".btn-up{opacity:1;}";
-
-  char btn_style_blank[] = ".btn-up{opacity:0.2;}";
-  char *btn_style;
+  char btn_opacity = '1';
 
   if(!parent_uri){
     parent_uri = malloc(2);
     parent_uri[0] = '#';
     parent_uri[1] = 0;   
-    btn_style = btn_style_blank;
-
-  }else{
-    btn_style = btn_style_full;
+    btn_opacity = '0';
   }
 
   mg_printf_http_chunk(
     nc,
     "<html><head><title>Index of %.*s</title>%s%s"
     "<style>"
-    "body{font-family:Arial;}"
+    "body{font-family:Arial;background:#242424;color:#d19344}"
     "table{min-width:60%;}"
-    "th,td {text-align: left; padding-right: 1em;padding:5px;}"
-    "th a, td a{color:#302c29;text-decoration:none;}"
-    "td a{font-weight: bold;}"
+    "th,td {text-align:left;padding-right:1em;padding:5px;}"
+    "th a, td a{color:#d19344;text-decoration:none;}"
+    "td a{font-weight:bold;}"
     "td:nth-child(1){min-width:50vw;}"
-    "tr:hover{background-color:#BDBDBD;}"
-    ".btn{background-color:#7892c2;border-radius:6px;"
-	  "border:1px solid #4e6096;display:inline-block;color:#ffffff;"
-    "padding:6px 20px;text-decoration:none;}"
-    ".btn:hover {background-color:#476e9e;}"
-    "%s\n"
-    ".dirpath span{margin-left: 30px;color:#302c29;}"
+    "tr:hover{background-color:#1a1a1a;}"
+    "thead tr:hover{background-color:transparent;}"
+    "#btn-up{width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;"
+		"border-bottom:10px solid #ccc;position:absolute;top:10px;left:10px;}"
+	  "#btn-up:hover{cursor:pointer;}"
+	  "#btn-up:after{content:'';border-bottom:15px solid #ccc;"	
+		"border-left:6px solid #ccc;border-right:6px solid #ccc;"
+		"position:absolute;top:8px;left:-6px;}"
+    "#btn-up{opacity:%c}"
+    ".dirpath{padding:10px 30px;width:100%;background-color:#1a1a1a;margin:-10px;position:relative;color:#ccc;}.dirpath span{margin-left:40px;}"
+	  "#drop-area{border:2px dashed #ccc;border-radius:20px;margin:40px 20px;padding:20px;}"
+	  "#drop-area.highlight{border-color:purple;}"
+    "@keyframes load { 0%{ opacity:0.08;filter:blur(5px);letter-spacing:3px;}}"
+    ".animate{animation:load 1.2s infinite 0s ease-in-out;animation-direction: alternate;}"
     "</style></head>\n"
     "<body>" 
-    "<p class=\"dirpath\"><a href=\"%s\" class=\"btn btn-up\">&uarr; Up One Level</a><span>%s</span></p>"
-    "<form method=\"POST\" action=\"/upload\" enctype=\"multipart/form-data\">"
-    "<input type=\"file\" name=\"file\">"
-    "<input type=\"submit\" value=\"Upload\" class=\"btn\">"
-    "</form>"
+    "<p class='dirpath'><a href='%s' id='btn-up' title='Up one level.'></a><span>%s</span></p>"
+    "<p id='drop-area'>Drop file to upload</p>"
     "<table cellpadding=0><thead>"
     "<tr><th><a href=# rel=0>Name</a></th><th>"
     "<a href=# rel=1>Modified</a</th>"
@@ -7310,7 +7324,7 @@ static void mg_send_directory_listing(struct mg_connection *nc, const char *dir,
     "<tr><td colspan=3><hr></td></tr>\n"
     "</thead>\n"
     "<tbody id=tb>",
-    (int) hm->uri.len, hm->uri.p, sort_js_code, sort_js_code2, btn_style, parent_uri, dir);
+    (int) hm->uri.len, hm->uri.p, sort_js_code, sort_js_code2, btn_opacity, parent_uri, dir);
 
 
   free(parent_uri);
@@ -7327,7 +7341,7 @@ static void mg_send_directory_listing(struct mg_connection *nc, const char *dir,
   mg_scan_directory(nc, dir, opts, mg_print_dir_entry);
   mg_printf_http_chunk(nc,
                        "</tbody></table>\n"                       
-                       "</body></html>");
+                       "</body>\n%s\n</html>", upload_js_code);
   mg_send_http_chunk(nc, "", 0);
   /* TODO(rojer): Remove when cesanta/dev/issues/197 is fixed. */
   nc->flags |= MG_F_SEND_AND_CLOSE;

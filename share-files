@@ -1,11 +1,12 @@
 #!/bin/bash
 
 # Helper script to also display the IP address before the file server starts.
+# Copy share-files script and mongoose-fs to /usr/bin/
 # call from thunar using:
-# exo-open --working-directory %f --launch TerminalEmulator /home/rada/Applications/share-files.sh
+# exo-open --working-directory %f --launch TerminalEmulator share-files
 
-# To use on your computer just change the WIFI name accordingly. Chack the wifi card name by running "ip a"
-WIFI_CARD_NAME="wlx60e327174a87"
+# To use on your computer just change the WIFI name accordingly. Check the wifi card name by running "ip a"
+WIFI_CARD_NAME="wlp1s0"
 CALL_DIR=$PWD
 SCRIPT_RELATIVE_PATH=$(dirname "$0")
 
@@ -15,7 +16,7 @@ firstip="$(echo $myip | cut -d ' ' -f 1)"
 
 echo
 echo "Sharing files from: $CALL_DIR" 
-echo "IP $firstip"
+echo "URL: http://$firstip:8000"
 
 $SCRIPT_RELATIVE_PATH/mongoose-fs $CALL_DIR
 
