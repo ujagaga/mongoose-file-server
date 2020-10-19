@@ -32,13 +32,21 @@ int main(int argc, char **argv) {
   struct mg_connection *nc;
 
   if(argc<2){
-    printf("Usage: enter the root dir ass argument\n");
+    printf("Usage: %s <root dir> [<port>]\n", argv[0]);
     return 1;
   }
 
-  mg_mgr_init(&mgr, NULL);
-  printf("Starting web server on port %s\n", s_http_port);
-  nc = mg_bind(&mgr, s_http_port, ev_handler);
+  mg_mgr_init(&mgr, NULL);  
+
+  if(argc > 2){
+    /* Port also provided */
+    printf("Starting web server on port %s\n", argv[2]);
+    nc = mg_bind(&mgr, argv[2], ev_handler);
+  }else{
+    printf("Starting web server on port %s\n", s_http_port);
+    nc = mg_bind(&mgr, s_http_port, ev_handler);    
+  }  
+  
   if (nc == NULL) {
     printf("Failed to create listener\n");
     return 1;
