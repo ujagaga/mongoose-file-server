@@ -7266,8 +7266,8 @@ static void mg_send_directory_listing(struct mg_connection *nc, const char *dir,
       "function uploadFile(file){let url='/upload';let formData=new FormData();formData.append('file',fileObj);\n"
       "fetch(url,{method:'POST',body:formData}).then(()=>{window.location.reload(false);})\n"
 	    ".catch(()=>{dropArea.innerHTML='Error uploading file.';console.log('Error uploading file.');})}\n"
-      "document.addEventListener('contextmenu',function(e){target=e.target;"
-      "if(target.text){"      
+      "document.addEventListener('contextmenu',function(e){target=e.target.text;"
+      "if(target){"      
       "ctxMenu.style.display='block';ctxMenu.style.left=(e.pageX-6)+'px';"
       "ctxMenu.style.top=(e.pageY-6)+'px';e.preventDefault();}"
       "else{hide_menu();}"
@@ -7276,9 +7276,10 @@ static void mg_send_directory_listing(struct mg_connection *nc, const char *dir,
       "ctxMenu.click(function(event){event.stopPropagation();});"
       "function request(cmd){var xhttp=new XMLHttpRequest();xhttp.open('GET', cmd, true);xhttp.send();"
       "xhttp.onreadystatechange=function(){if (xhttp.readyState == 4 && xhttp.responseText == 'Moved'){location.reload();}}}"
-      "function execute(op){var cmd=window.location.href+'?'+op+'='+escape(target.text)+'&ts='+Date.now();request(cmd)}"
+      "function execute(op){var cmd=window.location.href+'?'+op+'='+escape(target)+'&ts='+Date.now();request(cmd)}"
       "function archive(){execute('archive')}"
       "function del(){execute('delete')}"
+      "function newdir(){target=prompt('Please input new folder name','New_dir');if(target!=null){execute('newdir')}}"
       "</script>";      
 
   mg_send_response_line(nc, 200, opts->extra_headers);
@@ -7320,13 +7321,17 @@ static void mg_send_directory_listing(struct mg_connection *nc, const char *dir,
     "tr:hover{background-color:#1a1a1a;}"
     "thead tr:hover{background-color:transparent;}"
     "#btn-up{width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;"
-		"border-bottom:10px solid #ccc;position:absolute;top:10px;left:10px;}"
+		"border-bottom:10px solid #ccc;position:absolute;top:15px;left:15px;}"
 	  "#btn-up:hover{cursor:pointer;}"
 	  "#btn-up:after{content:'';border-bottom:15px solid #ccc;"	
 		"border-left:6px solid #ccc;border-right:6px solid #ccc;"
 		"position:absolute;top:8px;left:-6px;}"
     "#btn-up{opacity:%c}"
-    ".dirpath{padding:10px 30px;width:100%;margin:-10px;position:relative;color:#ccc;}.dirpath span{margin-left:40px;}"
+    "#btn-new{width:35px;height:20px;border-radius:4px;display:inline-block;padding:0;text-align:center;cursor:pointer;background-color:#ccc;"
+    "margin:15px 0 0 0;text-decoration:none;color:#242424;position:relative;}"
+    "#btn-new:before{content:'';width:75%;height:7px;border-radius:0 4px 0 0;background-color:#ccc;position:absolute;top:-5px;left:0px;}"
+    ".dirpath{padding:5px 50px;width:100%;margin:-10px;position:relative;color:#ccc;}"
+    ".dirpath span{margin-left:40px;}"
 	  "#drop-area{border:2px dashed #ccc;border-radius:20px;margin:11px 30px;padding:20px;max-width:600px;}"
 	  "#drop-area.highlight{border-color:purple;}"
     "@keyframes load { 0%{ opacity:0.08;filter:blur(5px);letter-spacing:3px;}}"
@@ -7341,7 +7346,8 @@ static void mg_send_directory_listing(struct mg_connection *nc, const char *dir,
     "<li id='del-menu' onclick='del();'>Delete</li>"
     "</ul></menu>"    
     "<div id='top-div'>"
-    "<p class='dirpath'><a href='%s' id='btn-up' title='Up one level.'></a><span>%s</span></p>"
+    "<div class='dirpath'><p id='btn-new' onclick='newdir();' title='New dir'><b>+</b></p>"
+    "<a href='%s' id='btn-up' title='Up one level.'></a><span title='Current path.'>%s</span></div>"
     "<p id='drop-area'>Drop file to upload</p>"
     "</div>"
     "<table cellpadding=0><thead>"
@@ -7353,10 +7359,7 @@ static void mg_send_directory_listing(struct mg_connection *nc, const char *dir,
     "<tbody id=tb>",
     (int) hm->uri.len, hm->uri.p, sort_js_code, sort_js_code2, btn_opacity, parent_uri, dir);
 
-
   free(parent_uri);
-  int di = 0;
-
   free(relative_path);
   relative_path_len = strlen(dir) + 1;
   relative_path = (char*)malloc(relative_path_len);

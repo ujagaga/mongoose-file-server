@@ -31,25 +31,25 @@ static void ev_handler(struct mg_connection *nc, int ev, void *p) {
         char cmd[2048]={0};   
         char url_decoded[hm->uri.len];
         int cmd_len;
-        int i, j = 0;
+        int i;
         
-        int decode_len = mg_url_decode(hm->uri.p, hm->uri.len, url_decoded, hm->uri.len, 1);  
-
+        mg_url_decode(hm->uri.p, hm->uri.len, url_decoded, hm->uri.len, 1);  
+       
         // Break at first new line char to leave just folder path 
-        for(i=0; i < decode_len; ++i){
-          if(url_decoded[i] == '\n'){
-            url_decoded[i] = 0;
-            decode_len = i - 1;                     
+        for(i=0; i < (int)strlen(url_decoded); ++i){
+          if(url_decoded[i] == '\n'){            
+            url_decoded[i] = 0;            
             break;
           }
         }
 
-        if(decode_len < 0){
-          url_decoded[0] = '/';
-          url_decoded[1] = 0;
-          decode_len = 1;
+        int decode_len = strlen(url_decoded);
+        if(url_decoded[decode_len-1] != '/'){
+          url_decoded[decode_len] = '/';
+          url_decoded[decode_len+1] = 0;    
+          decode_len++;          
         }
-       
+            
         ret = mg_get_http_var(&(hm->message), HTTP_CMD_DELETE, value, sizeof(value));
         if(ret > 0){ 
           memcpy(cmd, SYS_CMD_DEL, sizeof(SYS_CMD_DEL));
@@ -64,8 +64,8 @@ static void ev_handler(struct mg_connection *nc, int ev, void *p) {
           memcpy(cmd + cmd_len + decode_len, value, ret);
           cmd[strlen(cmd)] = '"';
 
-          printf("CMD: %s\n", cmd);          
-          // system(cmd);
+          // printf("CMD: %s\n", cmd);          
+          system(cmd);
 
           mg_http_send_error(nc, 301, NULL);
           return;
@@ -110,8 +110,8 @@ static void ev_handler(struct mg_connection *nc, int ev, void *p) {
           memcpy(cmd + strlen(cmd), value, ret);
           cmd[strlen(cmd)] = '"';
 
-          printf("CMD: %s\n", cmd); 
-          // system(cmd);
+          // printf("CMD: %s\n", cmd); 
+          system(cmd);
 
           mg_http_send_error(nc, 301, NULL);
           return;
@@ -120,7 +120,35 @@ static void ev_handler(struct mg_connection *nc, int ev, void *p) {
         // Check new dir command
         ret = mg_get_http_var(&(hm->message), HTTP_CMD_NEW_DIR, value, sizeof(value));
         if(ret > 0){
-          printf("HTTP_CMD_NEW_DIR: %s", value);   
+           // Form command
+          cmd[0] = 'c';
+          cmd[1] = 'd';
+          cmd[2] = ' ';
+
+          // Add path to chdir to. Start with root dir
+          cmd[3] = '"';
+          memcpy(cmd + 4, s_http_server_opts.document_root, strlen(s_http_server_opts.document_root));           
+        
+          // Append relative target path          
+          memcpy(cmd + strlen(cmd), url_decoded, decode_len);
+
+          cmd_len = strlen(cmd);
+          cmd[cmd_len] = '"';
+          cmd[cmd_len + 1] = ' ';
+          cmd[cmd_len + 2] = '&';
+          cmd[cmd_len + 3] = '&';
+          cmd[cmd_len + 4] = ' ';
+          
+          memcpy(cmd + cmd_len + 5, SYS_CMD_NEW_DIR, sizeof(SYS_CMD_NEW_DIR));
+          // Add dir name
+          memcpy(cmd + strlen(cmd), value, ret);
+          cmd[strlen(cmd)] = '"';
+
+          // printf("CMD: %s\n", cmd); 
+          system(cmd);
+
+          mg_http_send_error(nc, 301, NULL);
+          return;
         }
 
         mg_serve_http(nc, hm, s_http_server_opts);     
