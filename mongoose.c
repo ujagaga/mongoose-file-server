@@ -6782,12 +6782,15 @@ int mg_get_http_var(const struct mg_str *buf, const char *name, char *dst,
     dst[0] = '\0';
 
     for (p = buf->p; p + name_len < e; p++) {
-      if ((p == buf->p || p[-1] == '&') && p[name_len] == '=' &&
+      if ((p == buf->p || p[-1] == '&' || p[-1] == '?') && p[name_len] == '=' &&
           !mg_ncasecmp(name, p, name_len)) {
         p += name_len + 1;
         s = (const char *) memchr(p, '&', (size_t)(e - p));
         if (s == NULL) {
-          s = e;
+          s = (const char *) memchr(p, ' ', (size_t)(e - p));
+          if (s == NULL) {
+            s = e;
+          }
         }
         len = mg_url_decode(p, (size_t)(s - p), dst, dst_len, 1);
         /* -1 means: failed to decode or dst is too small */
@@ -7263,15 +7266,19 @@ static void mg_send_directory_listing(struct mg_connection *nc, const char *dir,
       "function uploadFile(file){let url='/upload';let formData=new FormData();formData.append('file',fileObj);\n"
       "fetch(url,{method:'POST',body:formData}).then(()=>{window.location.reload(false);})\n"
 	    ".catch(()=>{dropArea.innerHTML='Error uploading file.';console.log('Error uploading file.');})}\n"
-      "document.addEventListener('contextmenu',function(e){target=e.target.href;"
-      "if(target){"      
+      "document.addEventListener('contextmenu',function(e){target=e.target;"
+      "if(target.text){"      
       "ctxMenu.style.display='block';ctxMenu.style.left=(e.pageX-6)+'px';"
       "ctxMenu.style.top=(e.pageY-6)+'px';e.preventDefault();}"
       "else{hide_menu();}"
-      "},false);\n" 
-      "function download(){document.getElementById('dl_frame').src=target;hide_menu();}" 
+      "},false);\n"
       "document.addEventListener('click', function(){hide_menu();});"
       "ctxMenu.click(function(event){event.stopPropagation();});"
+      "function request(cmd){var xhttp=new XMLHttpRequest();xhttp.open('GET', cmd, true);xhttp.send();"
+      "xhttp.onreadystatechange=function(){if (xhttp.readyState == 4 && xhttp.responseText == 'Moved'){location.reload();}}}"
+      "function execute(op){var cmd=window.location.href+'?'+op+'='+escape(target.text)+'&ts='+Date.now();request(cmd)}"
+      "function archive(){execute('archive')}"
+      "function del(){execute('delete')}"
       "</script>";      
 
   mg_send_response_line(nc, 200, opts->extra_headers);
@@ -7329,12 +7336,10 @@ static void mg_send_directory_listing(struct mg_connection *nc, const char *dir,
     "ul{display:block;margin:0;padding:4px;border-radius:3px;background:#d19344;color:#242424;list-style-type:none;}"
     "li:hover{background:#242424;color:#ccc;padding:2px;cursor:default;}"
     "</style></head><body>\n" 
-    "<menu id='menu'><ul>"
-    "<li id='dl-menu' onclick='download();'>Download</li>"   
+    "<menu id='menu'><ul>"      
     "<li id='arc-menu' onclick='archive();'>Archive</li>"
     "<li id='del-menu' onclick='del();'>Delete</li>"
-    "</ul></menu>"
-    "<iframe id='dl_frame' style='display:none;'></iframe>"
+    "</ul></menu>"    
     "<div id='top-div'>"
     "<p class='dirpath'><a href='%s' id='btn-up' title='Up one level.'></a><span>%s</span></p>"
     "<p id='drop-area'>Drop file to upload</p>"
