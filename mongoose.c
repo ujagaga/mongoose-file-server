@@ -7310,7 +7310,7 @@ static void mg_send_directory_listing(struct mg_connection *nc, const char *dir,
 
   mg_printf_http_chunk(
     nc,
-    "<html><head><title>Index of %.*s</title>%s%s"
+    "<html><head><title>File Browser</title>%s%s"
     "<style>"
     "body{font-family:Arial;background:#242424;color:#d19344;}"
     "table{min-width:60%;margin-top:120px;}"
@@ -7357,7 +7357,7 @@ static void mg_send_directory_listing(struct mg_connection *nc, const char *dir,
     "<tr><td colspan=3><hr></td></tr>\n"
     "</thead>\n"
     "<tbody id=tb>",
-    (int) hm->uri.len, hm->uri.p, sort_js_code, sort_js_code2, btn_opacity, parent_uri, dir);
+    sort_js_code, sort_js_code2, btn_opacity, parent_uri, dir);
 
   free(parent_uri);
   free(relative_path);
