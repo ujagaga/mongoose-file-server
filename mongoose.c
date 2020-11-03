@@ -7250,7 +7250,7 @@ static void mg_send_directory_listing(struct mg_connection *nc, const char *dir,
       "}"
       "</script>";
   static const char *upload_js_code = "<script>"
-      "var target;var fileObj;let dropArea=document.getElementById('drop-area');"
+      "var target;var name;var fileObj;let dropArea=document.getElementById('drop-area');"
       "var ctxMenu=document.getElementById('menu');"
       "function hide_menu(){ctxMenu.style.display='none';}"
       ";['dragenter','dragover','dragleave','drop'].forEach(eventName=>{"
@@ -7276,10 +7276,12 @@ static void mg_send_directory_listing(struct mg_connection *nc, const char *dir,
       "ctxMenu.click(function(event){event.stopPropagation();});"
       "function request(cmd){var xhttp=new XMLHttpRequest();xhttp.open('GET', cmd, true);xhttp.send();"
       "xhttp.onreadystatechange=function(){if (xhttp.readyState == 4 && xhttp.responseText == 'Moved'){location.reload();}}}"
-      "function execute(op){var cmd=window.location.href+'?'+op+'='+escape(target)+'&ts='+Date.now();request(cmd)}"
+      "function execute(op){var cmd=window.location.href+'?'+op+'='+escape(target);if(op=='rename'){cmd+='&name='+name;}"
+      "cmd+='&ts='+Date.now();request(cmd)}"
       "function archive(){execute('archive')}"
       "function del(){execute('delete')}"
       "function newdir(){target=prompt('Please input new folder name','New_dir');if(target!=null){execute('newdir')}}"
+      "function rename(){name=prompt('Please input new name','New_name');if(name!=null){execute('rename')}}"
       "</script>";      
 
   mg_send_response_line(nc, 200, opts->extra_headers);
@@ -7344,8 +7346,9 @@ static void mg_send_directory_listing(struct mg_connection *nc, const char *dir,
     "li:hover{background:#1a1a1a;color:#ccc;cursor:default;}"
     "</style></head><body>\n" 
     "<menu id='menu'><ul>"      
-    "<li id='arc-menu' onclick='archive();'>Archive</li>"
-    "<li id='del-menu' onclick='del();'>Delete</li>"
+    "<li onclick='archive();'>Archive</li>"
+    "<li onclick='rename();'>Rename</li>"
+    "<li onclick='del();'>Delete</li>"
     "</ul></menu>"    
     "<div id='top-div'>"
     "<div class='dirpath'><p id='btn-new' onclick='newdir();' title='New dir'><b>+</b></p>"
