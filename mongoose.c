@@ -7367,7 +7367,7 @@ static void mg_send_directory_listing(struct mg_connection *nc, const char *dir,
   free(parent_uri);
   free(relative_path);
   relative_path_len = strlen(dir) + 1;
-  relative_path = (char*)malloc(relative_path_len);
+  relative_path = (char*)malloc(relative_path_len + 1);
 
   strcpy(relative_path, dir);
   relative_path[relative_path_len - 1] = '/';
