@@ -7264,9 +7264,9 @@ static void mg_send_directory_listing(struct mg_connection *nc, const char *dir,
       "function preventDefaults(e){e.preventDefault();e.stopPropagation();}"
       "function highlight(e){dropArea.classList.add('highlight')}"
       "function unhighlight(e){dropArea.classList.remove('highlight')}"
-      "function handleDrop(e){let dt=e.dataTransfer;fileObj=dt.files[0];\n"
-      "dropArea.innerHTML='Uploading <span class=\"animate\">'+fileObj.name+'</span>';uploadFile(fileObj);}\n"
-      "function uploadFile(file){let url='/upload';let formData=new FormData();formData.append('file',fileObj);\n"
+      "function handleDrop(e){let dt=e.dataTransfer;fileObj=dt.files[0];uploadFile(fileObj);}\n"
+      "function uploadFile(file){dropArea.innerHTML='Uploading <span class=\"animate\">'+file.name+'</span>';"
+      "let url='/upload';let formData=new FormData();formData.append('file',fileObj);\n"
       "fetch(url,{method:'POST',body:formData}).then(()=>{window.location.reload(false);})\n"
 	    ".catch(()=>{dropArea.innerHTML='Error uploading file.';console.log('Error uploading file.');})}\n"
       "document.addEventListener('contextmenu',function(e){target=e.target.text;"
@@ -7289,9 +7289,7 @@ static void mg_send_directory_listing(struct mg_connection *nc, const char *dir,
       "document.body.appendChild(anchor);anchor.click();}\n"
       "function newdir(){target=prompt('Please input new folder name','New_dir');if(target!=null){execute('newdir')}}"
       "function rename(){name=prompt('Please input new name','New_name');if(name!=null){execute('rename')}}"
-      "function submitFile(){fname=fupld.files[0].name;"
-      "dropArea.innerHTML='Uploading <span class=\"animate\">'+fname+'</span>';"
-      "document.getElementById('fupldfrm').submit();}"
+      "function submitFile(){fileObj=fupld.files[0];uploadFile(fileObj);}"
       "</script>";      
 
   mg_send_response_line(nc, 200, opts->extra_headers);
