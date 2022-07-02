@@ -1,4 +1,5 @@
 #include "mongoose.h"
+#include "packed_html.h"
 #ifdef MG_MODULE_LINES
 #line 1 "mongoose/src/internal.h"
 #endif
@@ -1035,7 +1036,7 @@ void cs_md5_update(cs_md5_ctx *ctx, const unsigned char *buf, size_t len) {
   memcpy(ctx->in, buf, len);
 }
 
-void cs_md5_final(unsigned char digest[16], cs_md5_ctx *ctx) {
+void cs_md5_final(unsigned char* digest, cs_md5_ctx *ctx) {
   unsigned count;
   unsigned char *p;
   uint32_t *a;
@@ -7226,158 +7227,46 @@ static void mg_scan_directory(struct mg_connection *nc, const char *dir,
 static void mg_send_directory_listing(struct mg_connection *nc, const char *dir,
                                       struct http_message *hm,
                                       struct mg_serve_http_opts *opts) {
-  static const char *sort_js_code =
-      "<script>function srt(tb, sc, so, d) {"
-      "var tr = Array.prototype.slice.call(tb.rows, 0),"
-      "tr = tr.sort(function (a, b) { var c1 = a.cells[sc], c2 = b.cells[sc],"
-      "n1 = c1.getAttribute('name'), n2 = c2.getAttribute('name'), "
-      "t1 = a.cells[2].getAttribute('name'), "
-      "t2 = b.cells[2].getAttribute('name'); "
-      "return so * (t1 < 0 && t2 >= 0 ? -1 : t2 < 0 && t1 >= 0 ? 1 : "
-      "n1 ? parseInt(n2) - parseInt(n1) : "
-      "c1.textContent.trim().localeCompare(c2.textContent.trim())); });";
-  static const char *sort_js_code2 =
-      "for (var i = 0; i < tr.length; i++) tb.appendChild(tr[i]); "
-      "if (!d) window.location.hash = ('sc=' + sc + '&so=' + so); "
-      "};"
-      "window.onload = function() {"
-      "var tb = document.getElementById('tb');"
-      "var m = /sc=([012]).so=(1|-1)/.exec(window.location.hash) || [0, 2, 1];"
-      "var sc = m[1], so = m[2]; document.onclick = function(ev) { "
-      "var c = ev.target.rel; if (c) {if (c == sc) so *= -1; srt(tb, c, so); "
-      "sc = c; ev.preventDefault();}};"
-      "srt(tb, sc, so, true);"
-      "}"
-      "</script>";
-  static const char *upload_js_code = "<script>"
-      "var target;var name;var fileObj;let dropArea=document.getElementById('drop-area');"
-      "let fupld=document.getElementById('fupld');"
-      "var ctxMenu=document.getElementById('menu');"
-      "var dldOpt=document.getElementById('downld');"
-      "function browse_file(){fupld.click()}"
-      "function hide_menu(){ctxMenu.style.display='none';}"
-      ";['dragenter','dragover','dragleave','drop'].forEach(eventName=>{"
-	    "dropArea.addEventListener(eventName,preventDefaults,false)});"
-      ";['dragenter','dragover'].forEach(eventName=>{dropArea.addEventListener(eventName,highlight,false)});"
-      ";['dragleave','drop'].forEach(eventName=>{dropArea.addEventListener(eventName,unhighlight,false)});"
-	    "dropArea.addEventListener('drop',handleDrop,false);dropArea.addEventListener('click',browse_file,false);"
-      "function preventDefaults(e){e.preventDefault();e.stopPropagation();}"
-      "function highlight(e){dropArea.classList.add('highlight')}"
-      "function unhighlight(e){dropArea.classList.remove('highlight')}"
-      "function handleDrop(e){let dt=e.dataTransfer;fileObj=dt.files[0];uploadFile(fileObj);}\n"
-      "function uploadFile(file){dropArea.innerHTML='Uploading <span class=\"animate\">'+file.name+'</span>';"
-      "let url='/upload';let formData=new FormData();formData.append('file',fileObj);\n"
-      "fetch(url,{method:'POST',body:formData}).then(()=>{window.location.reload(false);})\n"
-	    ".catch(()=>{dropArea.innerHTML='Error uploading file.';console.log('Error uploading file.');})}\n"
-      "document.addEventListener('contextmenu',function(e){target=e.target.text;"
-      "if(target){"      
-      "ctxMenu.style.display='block';ctxMenu.style.left=(e.pageX-60)+'px';"
-      "ctxMenu.style.top=(e.pageY-6)+'px';e.preventDefault();\n"
-      "if(target.endsWith('/')){dldOpt.style.display='none';}"
-      "else{dldOpt.style.display='block';}}"
-      "else{hide_menu();}"
-      "},false);\n"
-      "document.addEventListener('click', function(){hide_menu();});"
-      "ctxMenu.click(function(event){event.stopPropagation();});"
-      "function request(cmd){var xhttp=new XMLHttpRequest();xhttp.open('GET', cmd, true);xhttp.send();"
-      "xhttp.onreadystatechange=function(){if (xhttp.readyState == 4 && xhttp.responseText == 'Moved'){location.reload();}}}"
-      "function execute(op){var cmd=window.location.href+'?'+op+'='+escape(target);if(op=='rename'){cmd+='&name='+name;}"
-      "cmd+='&ts='+Date.now();request(cmd)}"
-      "function archive(){execute('archive')}"
-      "function del(){execute('delete')}\n"
-      "function downld(){url=window.location.href+target;var anchor=document.createElement('a');anchor.href=url;anchor.download=target;"
-      "document.body.appendChild(anchor);anchor.click();}\n"
-      "function newdir(){target=prompt('Please input new folder name','New_dir');if(target!=null){execute('newdir')}}"
-      "function rename(){name=prompt('Please input new name','New_name');if(name!=null){execute('rename')}}"
-      "function submitFile(){fileObj=fupld.files[0];uploadFile(fileObj);}"
-      "</script>";      
+    
 
   mg_send_response_line(nc, 200, opts->extra_headers);
   mg_printf(nc, "%s: %s\r\n%s: %s\r\n\r\n", "Transfer-Encoding", "chunked",
             "Content-Type", "text/html; charset=utf-8");
 
-  int cur_uri_len = (int) hm->uri.len - 1;  
-  int cui ;
-  char *parent_uri = 0;
-
-  for(cui = cur_uri_len - 1; cui > -1; --cui){    
-    if(hm->uri.p[cui] == '/'){      
-      parent_uri = malloc(cui + 2);
-      strncpy(parent_uri, hm->uri.p, cui + 1);
-      parent_uri[cui + 1] = 0;
-      break;
-    }
-  }
-
-  char btn_opacity = '1';
-
-  if(!parent_uri){
-    parent_uri = malloc(2);
-    parent_uri[0] = '#';
-    parent_uri[1] = 0;   
-    btn_opacity = '0';
+  char *up_btn_style = "opacity:0.2;cursor:default;pointer-events:none;";
+  long relative_path_len = strlen(dir) - strlen(opts->document_root);
+  if(relative_path_len > 0){
+    up_btn_style = "opacity:0.8;";
   }
 
   mg_printf_http_chunk(
     nc,
-    "<html><head><title>File Browser</title>%s%s"
-    "<link rel='icon' href='data:;base64,='>"
-    "<style>"
-    "body{font-family:Arial;background:#242424;color:#d19344;}"
-    "table{min-width:60%;margin-top:120px;}"
-    "th,td {text-align:left;padding-right:1em;padding:5px;}"
-    "th a, td a{color:#d19344;text-decoration:none;}"
-    "td a{font-weight:bold;}"
-    "td:nth-child(1){min-width:50vw;}"
-    "tr:hover{background-color:#1a1a1a;}"
-    "thead tr:hover{background-color:transparent;}"
-    "#btn-up{width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;"
-		"border-bottom:10px solid #ccc;position:absolute;top:15px;left:15px;}"
-	  "#btn-up:hover{cursor:pointer;}"
-	  "#btn-up:after{content:'';border-bottom:15px solid #ccc;"	
-		"border-left:6px solid #ccc;border-right:6px solid #ccc;"
-		"position:absolute;top:8px;left:-6px;}"
-    "#btn-up{opacity:%c}"
-    "#btn-new{width:35px;height:20px;border-radius:4px;display:inline-block;padding:0;text-align:center;cursor:pointer;background-color:#ccc;"
-    "margin:15px 0 0 0;text-decoration:none;color:#242424;position:relative;}"
-    "#btn-new:before{content:'';width:75%;height:7px;border-radius:0 4px 0 0;background-color:#ccc;position:absolute;top:-5px;left:0px;}"
-    ".dirpath{padding:5px 50px;width:100%;margin:-10px;position:relative;color:#ccc;}"
-    ".dirpath span{margin-left:40px;}"
-	  "#drop-area{border:2px dashed #ccc;border-radius:20px;margin:11px 30px;padding:20px;max-width:600px;}"
-	  "#drop-area.highlight{border-color:purple;}"
-    "@keyframes load { 0%{ opacity:0.08;filter:blur(5px);letter-spacing:3px;}}"
-    ".animate{animation:load 1.2s infinite 0s ease-in-out;animation-direction: alternate;}"
-    "#top-div{position:fixed;width:100vw;top:0;left:0;background-color:#1a1a1a;}"
-    "menu{display:none;z-index:100;position:absolute;margin:0;}"    
-    "ul{display:block;margin:0;padding:0;border-radius:6px;border:2px solid #ccc;background:#242424;color:#d19344;list-style-type:none;}"
-    "li{padding:6px 20px;border-radius:6px;}"
-    "li:hover{background:#1a1a1a;color:#ccc;cursor:default;}"
-    "#fupldfrm{display:none;}"
-    "</style></head><body>\n" 
-    "<menu id='menu'><ul>"      
-    "<li onclick='archive();'>Archive</li>"
-    "<li onclick='rename();'>Rename</li>"
-    "<li onclick='del();'>Delete</li>"
-    "<li id='downld' onclick='downld();'>Download</li>"
-    "</ul></menu>"    
-    "<div id='top-div'>"
-    "<div class='dirpath'><p id='btn-new' onclick='newdir();' title='New dir'><b>+</b></p>"
-    "<a href='%s' id='btn-up' title='Up one level.'></a><span title='Current path.'>%s</span></div>"
+    "<!DOCTYPE html><html>"
+    "<link rel='icon' type='image/png' sizes='16x16' href='%s' />"
+    "<head><title>"APP_NAME"</title>"
+    "%s%s<style>#btn-up{%s}</style>%s"
+    "%s</head><body>\n" 
+    "<div id='toolbar'>"
+      "<p class='tool-btn' onclick='newdir()' title='New directory'><img src='%s' alt='New'/></p>"
+      "<a class='tool-btn' id='btn-up' href='..' title='Go to parent dir'><img src='%s' alt='Up'/></a>"
+      "<p id='loc-path'>%.*s</p>"
+    "</div>"
+
     "<p id='drop-area'>Drop file to upload or tap to browse.</p>"
     "<form action='/upload' enctype='multipart/form-data' method='post' id='fupldfrm'>"
     "<input type='file' id='fupld' name='filename' onchange='submitFile();'>"
     "</form>"
     "</div>"
-    "<table cellpadding=0><thead>"
-    "<tr><th><a href=# rel=0>Name</a></th><th>"
-    "<a href=# rel=1>Modified</a</th>"
-    "<th><a href=# rel=2>Size</a></th></tr>"
-    "<tr><td colspan=3><hr></td></tr>\n"
-    "</thead>\n"
+    "<table cellpadding=\"0\" id='contents'>"
+    "<thead>"
+      "<tr><th><p class='click' onclick='srt(0, 2);'>Name</p></th><th>"
+      "<p class='click' onclick='srt(1, 2);'>Modified</p></th>"
+      "<th><p class='click' onclick='srt(2, 2);'>Size</p></th></tr>"
+    "</thead>"
     "<tbody id=tb>",
-    sort_js_code, sort_js_code2, btn_opacity, parent_uri, dir);
+    favicon_png, main_style_css, toolbar_css, up_btn_style, menu_css, menu_html, 
+    new_dir_png, up_arrow_png, (int) hm->uri.len, hm->uri.p);
 
-  free(parent_uri);
   free(relative_path);
   relative_path_len = strlen(dir) + 1;
   relative_path = (char*)malloc(relative_path_len + 1);
@@ -7389,7 +7278,7 @@ static void mg_send_directory_listing(struct mg_connection *nc, const char *dir,
   mg_scan_directory(nc, dir, opts, mg_print_dir_entry);
   mg_printf_http_chunk(nc,
                        "</tbody></table>\n"                       
-                       "</body>\n%s\n</html>", upload_js_code);
+                       "</body>\n%s%s%s\n</html>", upload_file_js, sort_table_js, menu_js);
   mg_send_http_chunk(nc, "", 0);
   /* TODO(rojer): Remove when cesanta/dev/issues/197 is fixed. */
   nc->flags |= MG_F_SEND_AND_CLOSE;

@@ -25,6 +25,8 @@
 
 #define MG_VERSION "6.9"
 
+#define APP_NAME "Ujagaga File Server"
+
 /* Local tweaks, applied before any of Mongoose's own headers. */
 #ifdef MG_LOCALS
 #include <mg_locals.h>

@@ -20,6 +20,8 @@ static const char SYS_CMD_RENAME[] = "mv \"";
 struct mg_str cb(struct mg_connection *c, struct mg_str file_name) {
   // Return the same filename. Do not actually do this except in test!
   // fname is user-controlled and needs to be sanitized.
+  // TODO: sanitize file name
+  (void)c;
   return file_name;
 }
 
@@ -224,10 +226,10 @@ int main(int argc, char **argv) {
 
   if(argc > 2){
     /* Port also provided */
-    printf("Starting web server on port %s\n", argv[2]);
+    printf("Starting web server on http://localhost:%s\n", argv[2]);
     nc = mg_bind(&mgr, argv[2], ev_handler);
   }else{
-    printf("Starting web server on port %s\n", s_http_port);
+    printf("Starting web server on http://localhost:%s\n", s_http_port);
     nc = mg_bind(&mgr, s_http_port, ev_handler);    
   }  
   
@@ -240,6 +242,8 @@ int main(int argc, char **argv) {
   mg_set_protocol_http_websocket(nc);
   s_http_server_opts.document_root = argv[1];    
   s_http_server_opts.enable_directory_listing = "yes";
+
+  printf("Mongoose version: v%s\n", MG_VERSION);
 
   for (;;) {
     mg_mgr_poll(&mgr, 1000);
