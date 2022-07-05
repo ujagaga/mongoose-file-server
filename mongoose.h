@@ -25,7 +25,7 @@
 
 #define MG_VERSION "6.9"
 
-#define APP_NAME "Ujagaga File Server"
+//#define APP_NAME "Ujagaga File Server"
 
 /* Local tweaks, applied before any of Mongoose's own headers. */
 #ifdef MG_LOCALS
@@ -386,6 +386,7 @@ unsigned int sleep(unsigned int seconds);
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <stdbool.h>
 
 #ifdef __APPLE__
 #include <machine/endian.h>
@@ -4820,6 +4821,9 @@ struct mg_serve_http_opts {
  */
 void mg_serve_http(struct mg_connection *nc, struct http_message *hm,
                    struct mg_serve_http_opts opts);
+
+void mg_http_reply(struct mg_connection *, int status_code, const char *headers,
+                   const char *body_fmt, ...);
 
 /*
  * Serves a specific file with a given MIME type and optional extra headers.

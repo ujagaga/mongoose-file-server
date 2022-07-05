@@ -1,5 +1,6 @@
 #include "mongoose.h"
 #include "packed_html.h"
+
 #ifdef MG_MODULE_LINES
 #line 1 "mongoose/src/internal.h"
 #endif
@@ -6618,6 +6619,20 @@ static int mg_http_parse_range_header(const struct mg_str *header, int64_t *a,
   return result;
 }
 
+void mg_http_reply(struct mg_connection *c, int code, const char *headers,
+                   const char *fmt, ...) {
+  char mem[256], *buf = mem;
+  va_list ap;
+  size_t len;
+  va_start(ap, fmt);
+  len = mg_asprintf(&buf, sizeof(mem), fmt, ap);
+  va_end(ap);
+  mg_printf(c, "HTTP/1.1 %d %s\r\n%sContent-Length: %d\r\n\r\n", code,
+            mg_status_message(code), headers == NULL ? "" : headers, (int)len);
+  mg_send(c, buf, len > 0 ? len : 0);
+  if (buf != mem) free(buf);
+}
+
 void mg_http_serve_file(struct mg_connection *nc, struct http_message *hm,
                         const char *path, const struct mg_str mime_type,
                         const struct mg_str extra_headers) {
@@ -7242,14 +7257,16 @@ static void mg_send_directory_listing(struct mg_connection *nc, const char *dir,
   mg_printf_http_chunk(
     nc,
     "<!DOCTYPE html><html>"
-    "<link rel='icon' type='image/png' sizes='16x16' href='%s' />"
+    "<link rel='icon' type='image/png' sizes='16x16' href='"FAVICON_ICO"' />"
     "<head><title>"APP_NAME"</title>"
     "%s%s<style>#btn-up{%s}</style>%s"
     "%s</head><body>\n" 
     "<div id='toolbar'>"
+      "<a class='tool-btn' href='/about.html' title='About'><img src='%s' alt='About'/></a>"
+      "<a class='tool-btn' href='/logout.html' title='Logout'><img src='%s' alt='Logout'/></a>"
       "<p class='tool-btn' onclick='newdir()' title='New directory'><img src='%s' alt='New'/></p>"
       "<a class='tool-btn' id='btn-up' href='..' title='Go to parent dir'><img src='%s' alt='Up'/></a>"
-      "<p id='loc-path'>%.*s</p>"
+      "<p id='loc-path'>%.*s</p>"      
     "</div>"
 
     "<p id='drop-area'>Drop file to upload or tap to browse.</p>"
@@ -7264,8 +7281,8 @@ static void mg_send_directory_listing(struct mg_connection *nc, const char *dir,
       "<th><p class='click' onclick='srt(2, 2);'>Size</p></th></tr>"
     "</thead>"
     "<tbody id=tb>",
-    favicon_png, main_style_css, toolbar_css, up_btn_style, menu_css, menu_html, 
-    new_dir_png, up_arrow_png, (int) hm->uri.len, hm->uri.p);
+    main_style_css, toolbar_css, up_btn_style, menu_css, menu_html, 
+    about_png, logout_png, new_dir_png, up_arrow_png, (int) hm->uri.len, hm->uri.p);
 
   free(relative_path);
   relative_path_len = strlen(dir) + 1;
@@ -7891,7 +7908,7 @@ void mg_file_upload_handler(struct mg_connection *nc, int ev, void *ev_data,
       mp->user_data = NULL;
 
       if (lfn.p == NULL || lfn.len == 0) {
-        LOG(LL_ERROR, ("%p Not allowed to upload %s", nc, mp->file_name));
+        LOG(LL_ERROR, ("%p Not allowed to upload filename: %s", nc, mp->file_name));
         mg_printf(nc,
                   "HTTP/1.1 403 Not Allowed\r\n"
                   "Content-Type: text/plain\r\n"
@@ -7908,9 +7925,11 @@ void mg_file_upload_handler(struct mg_connection *nc, int ev, void *ev_data,
       LOG(LL_DEBUG,
           ("%p Receiving file %s -> %s\n", nc, mp->file_name, fus->lfn));     
 
-      char* file_destination_path = (char*)malloc(relative_path_len + strlen(fus->lfn)); 
+      // char* file_destination_path = (char*)malloc(relative_path_len + strlen(fus->lfn)); 
+      char file_destination_path[MG_MAX_PATH] = {0};
+
       strcpy(file_destination_path, relative_path);
-      strcpy(file_destination_path + relative_path_len, fus->lfn);
+      strcat(file_destination_path, fus->lfn);
 
       fus->fp = mg_fopen(file_destination_path, "w");
       if (fus->fp == NULL) {

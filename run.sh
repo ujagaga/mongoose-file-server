@@ -12,5 +12,5 @@ SCRIPT_DIR="$(cd -P "$(dirname -- "${SCRIPT_PATH}")" >/dev/null 2>&1 && pwd)"
 echo "Entering script dir: $SCRIPT_DIR"
 cd $SCRIPT_DIR
 
-mkdir -p serve_root
-./mongoosefs -d serve_root
+mkdir serve_root
+./mongoosefs serve_root
