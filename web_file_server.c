@@ -20,7 +20,7 @@ static const char SYS_ARCHIVE_EXT[] = ".tar.gz\" \"";
 static const char SYS_CMD_NEW_DIR[] = "mkdir \"";
 static const char SYS_CMD_RENAME[] = "mv \"";
 
-#define UPLOAD_AUTH_TIMEOUT   1    // Revoke authorization after this time in s since last file upload.
+#define UPLOAD_AUTH_TIMEOUT   100    // Revoke authorization after this time in s since last file upload.
 
 
 #ifdef LOGIN_SUPPORT
@@ -376,7 +376,7 @@ static void request_handler(struct mg_connection *nc, int ev, void *p) {
 #endif
       }
       break;
-  
+  /* File download section */
     case MG_EV_HTTP_PART_BEGIN:    
       {
 #ifdef LOGIN_SUPPORT
@@ -387,12 +387,8 @@ static void request_handler(struct mg_connection *nc, int ev, void *p) {
           check_upload_credentials();
           if(last_uploaded > 0){
             mg_file_upload_handler(nc, ev, p, request_sanitizer);
-          }else{
-            mg_http_send_error(nc, 401, "Not authorized.");
           }
-        }else{
-          mg_http_send_error(nc, 401, "Not authorized.");
-        }             
+        }            
 #endif
       }
       break;
@@ -409,41 +405,22 @@ static void request_handler(struct mg_connection *nc, int ev, void *p) {
         }else if(strcmp(var_name, "session") == 0){
           strncpy(session_id, mp_data->data.p, (int)mp_data->data.len);
           last_uploaded = 0;
-        }
+        }        
 
         if(strcmp(var_name, "file") == 0){
           check_upload_credentials();
           if((last_uploaded > 0) && ((mg_time() - last_uploaded) < UPLOAD_AUTH_TIMEOUT)){
-            mg_file_upload_handler(nc, ev, p, request_sanitizer);
-          }else{
-            mg_http_send_error(nc, 401, "Not authorized.");
+            mg_file_upload_handler(nc, ev, p, request_sanitizer);            
           }
-        }else{
-          mg_http_send_error(nc, 401, "Not authorized.");
-        }   
+        } 
       }
       break;
-#endif        
-      
+#endif              
     case MG_EV_HTTP_PART_END:
       {
-#ifdef LOGIN_SUPPORT
-        if(strcmp(var_name, "file") == 0){
-          check_upload_credentials();
-          if((last_uploaded > 0) && ((mg_time() - last_uploaded) < UPLOAD_AUTH_TIMEOUT)){
-            mg_file_upload_handler(nc, ev, p, request_sanitizer);
-          }else{
-            mg_http_send_error(nc, 401, "Not authorized.");
-          }
-        }else{
-          mg_http_send_error(nc, 401, "Not authorized.");
-        }
-#else
-        mg_file_upload_handler(nc, ev, p, request_sanitizer);     
-#endif
+        mg_file_upload_handler(nc, ev, p, request_sanitizer);
       }
-      break;  
-    
+      break;      
   }
 }
 

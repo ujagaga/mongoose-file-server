@@ -7269,7 +7269,7 @@ static void mg_send_directory_listing(struct mg_connection *nc, const char *dir,
       "<p id='loc-path'>%.*s</p>"      
     "</div>"
 
-    "<p id='drop-area'>Drop file to upload or tap to browse.</p>"
+    "<p id='drop-area'>Drop file to upload or click to browse.</p>"
     "<form action='/upload' enctype='multipart/form-data' method='post' id='fupldfrm'>"
     "<input type='file' id='fupld' name='filename' onchange='submitFile();'>"
     "</form>"
@@ -7925,11 +7925,11 @@ void mg_file_upload_handler(struct mg_connection *nc, int ev, void *ev_data,
       LOG(LL_DEBUG,
           ("%p Receiving file %s -> %s\n", nc, mp->file_name, fus->lfn));     
 
-      // char* file_destination_path = (char*)malloc(relative_path_len + strlen(fus->lfn)); 
       char file_destination_path[MG_MAX_PATH] = {0};
 
       strcpy(file_destination_path, relative_path);
       strcat(file_destination_path, fus->lfn);
+      // printf("---DST:%s\n", file_destination_path);
 
       fus->fp = mg_fopen(file_destination_path, "w");
       if (fus->fp == NULL) {
@@ -7979,7 +7979,7 @@ void mg_file_upload_handler(struct mg_connection *nc, int ev, void *ev_data,
         fus->fp = NULL;
         /* Do not close the connection just yet, discard remainder of the data.
          * This is because at the time of writing some browsers (Chrome) fail to
-         * render response before all the data is sent. */
+         * render response before all the data is sent. */       
         return;
       }
       fus->num_recd += mp->data.len;
@@ -8000,8 +8000,7 @@ void mg_file_upload_handler(struct mg_connection *nc, int ev, void *ev_data,
                   "HTTP/1.1 200 OK\r\n"
                   "Content-Type: text/html; charset=utf-8\r\n"
                   "Connection: close\r\n\r\n"
-                  "<p>UPLOAD SUCCESS! %s - %d bytes.</p>\r\n"
-                  "<script>setTimeout(function(){ window.location.replace(document.referrer);}, 3000);</script>",
+                  "UPLOAD SUCCESS! %s - %d bytes.\r\n",
                   mp->file_name, (int) fus->num_recd);
       } else {
         LOG(LL_ERROR, ("Failed to store %s (%s)", mp->file_name, fus->lfn));

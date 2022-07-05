@@ -76,7 +76,7 @@ static const char about_html[] = "<!DOCTYPE html><html lang='en'>"
     "<h2>File Upload</h2>"
     "<p>You may use the web browser UI or upload via console or script. Added support for chunked file upload, so any file size is excepted.</p>"
     "<p>To upload using the <b>curl</b> utillity, please provide file name, and user credentials:</p>"
-    "<p class='code'>curl -H \"Transfer-Encoding: chunked\" -F file=@my_large.file [server_url]/upload?name=my_large.file&u=username&p=passwd</p>"
+    "<p class='code'>curl -H \"Transfer-Encoding: chunked\" -v -F file=@my_large.file [server_url]/upload?name=my_large.file&u=username&p=passwd</p>"
     "<h2>File Download</h2>"
     "<p>To download a whole folder, use the context menu to archive the selected folder and then download the archive.</p>"
     "<p>TODO: console based download with provided user credentials.</p>"
@@ -210,16 +210,16 @@ static const char upload_file_js[] = "<script>"
     "</script>";    
 
 static const char main_style_css[] = "<style>"
-    "body{font-family:Arial;background:#242424;color:#d19344;padding-top:2em;}"
-    "table{min-width: 100ch;margin-top:10px;}"
+    "body{font-family:Arial;background:#dadada;color:#242424;padding-top:2em;}"
+    "table{margin-top:10px;width:100%;}"
     "th,td{text-align:left;padding-right:1em;font-family:monospace;}"
-    "th a, td a{color:#d19344;text-decoration:none;}"   
+    "th a, td a{color:#242424;text-decoration:none;}"   
     "td a{font-weight:bold;}"     
-    "tr:nth-child(even){background-color:#343434;}"
+    "tr:nth-child(even){background-color:#aaaaaa;}"
     "td:nth-child(1){min-width:50ch;}"
-    "td:nth-child(2){width:20ch;}"
-    "td:nth-child(3){width:13ch;}"    
-    "tr:hover{background-color:#444444;}"
+    "td:nth-child(2){width:18ch;min-width:18ch;}"
+    "td:nth-child(3){width:8ch;min-width:8ch;}"    
+    "tr:hover{background-color:#fafafa;}"
     "thead tr:hover{background-color:transparent;}" 
     ".click{cursor: pointer;}"
     ".dirpath{padding:5px 50px;width:100%;margin:-10px;position:relative;color:#ccc;}"
@@ -228,6 +228,7 @@ static const char main_style_css[] = "<style>"
     "#drop-area{border:2px dashed #2c2c2c;border-radius:20px;margin:11px 30px;padding:20px;max-width:70ch;}"
     "#drop-area.highlight{border-color:purple;}"
     "#fupldfrm{display:none;}"
+    "@keyframes load { 0%{ opacity:0.08;filter:blur(5px);letter-spacing:3px;}}"
     ".animate{animation:load 1.2s infinite 0s ease-in-out;animation-direction: alternate;}"
     "</style>";
 
@@ -280,12 +281,10 @@ static const char menu_js[] = "<script>"
 
 static const char toolbar_css[] = "<style>"
     "#toolbar{width: 100vw;margin:0;padding:0 10px;display:flex;background-color:#dadada;color:#2c2c2c;position:fixed;top:0;left:0;}"
-    ".tool-btn{margin: 2px;padding:0;opacity:0.8;cursor:pointer;text-decoration:none;}"
+    ".tool-btn{margin: 2px 5px;padding:0;opacity:0.8;cursor:pointer;text-decoration:none;}"
     ".tool-btn:hover{opacity:1;}"
     ".tool-btn img{width:24px;height:24px;}"
     "#loc-path{margin:1px 1px 1px 10px;font-size:24px;line-height:26px;padding:0;}"
-    "</style>";
-
-    
+    "</style>";    
 
 #endif
