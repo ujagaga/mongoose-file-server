@@ -22,7 +22,6 @@ static const char SYS_CMD_RENAME[] = "mv \"";
 
 #define UPLOAD_AUTH_TIMEOUT   1    // Revoke authorization after this time in s since last file upload.
 
-struct mg_str request_sanitizer(struct mg_connection *c, struct mg_str file_name);
 
 #ifdef LOGIN_SUPPORT
 /* This is the name of the cookie carrying the session ID. */
@@ -105,6 +104,20 @@ static struct session *get_session_by_id(char* ssid) {
   return NULL;
 }
 
+static void check_upload_credentials(){
+
+  if(check_pass(user, pass)) {
+    last_uploaded = mg_time();
+  }else{
+    struct session *s = get_session_by_id(session_id);
+
+    uint64_t sid = strtoull(session_id, NULL, 16);
+    if ((s != NULL) && (s->id == sid)) {
+      last_uploaded = mg_time();
+    }
+  }
+}
+
 /* Destroys the session state. */
 static void destroy_session(struct session *s) {
   free(s->user);
@@ -170,29 +183,6 @@ void check_sessions() {
       fprintf(stderr, "Session %ld (%s) closed due to idleness.\n", s->id, s->user);
       destroy_session(s);
     }
-  }
-}
-
-void upload_handler(struct mg_connection *nc, int ev, void *p){
-  if (last_uploaded == 0.0){
-    if(check_pass(user, pass)) {
-      last_uploaded = mg_time();
-    }else{
-      struct session *s = get_session_by_id(session_id);
-      
-        uint64_t sid = strtoull(session_id, NULL, 16);
-      if ((s != NULL) && (s->id == sid)) {
-        last_uploaded = mg_time();
-      }
-    }
-  }
-
-  if ((mg_time() - last_uploaded) < UPLOAD_AUTH_TIMEOUT) {        
-    mg_file_upload_handler(nc, ev, p, request_sanitizer);
-    last_uploaded = mg_time();
-  }else{   
-    printf("Not authorized\n");
-    mg_http_send_error(nc, 401, "Not authorized. Please send credentials.");
   }
 }
 
@@ -387,46 +377,73 @@ static void request_handler(struct mg_connection *nc, int ev, void *p) {
       }
       break;
   
-    case MG_EV_HTTP_PART_BEGIN: 
-#ifdef LOGIN_SUPPORT    
+    case MG_EV_HTTP_PART_BEGIN:    
       {
+#ifdef LOGIN_SUPPORT
         struct mg_http_multipart_part *mp = (struct mg_http_multipart_part *) p;
         strncpy(var_name, mp->var_name, sizeof(var_name));
-      }
+        
+        if((strcmp(var_name, "file") == 0) && (last_uploaded == 0)){
+          check_upload_credentials();
+          if(last_uploaded > 0){
+            mg_file_upload_handler(nc, ev, p, request_sanitizer);
+          }else{
+            mg_http_send_error(nc, 401, "Not authorized.");
+          }
+        }else{
+          mg_http_send_error(nc, 401, "Not authorized.");
+        }             
 #endif
-    case MG_EV_HTTP_PART_DATA:
+      }
+      break;
+    case MG_EV_HTTP_PART_DATA:      
 #ifdef LOGIN_SUPPORT
-      {
-        /* Make sure upload is not interrupted */
-        if((last_uploaded > 0) && ((mg_time() - last_uploaded) < UPLOAD_AUTH_TIMEOUT)){
-          // Upload is in progress. Refuse a new one.
-          mg_http_send_error(nc, 401, "Not authorized. Upload is in progress. Please wait.");
-          return;
-        }
+      { 
         struct mg_http_multipart_part *mp_data = (struct mg_http_multipart_part *) p;
         if(strcmp(var_name, "user") == 0){
           strncpy(user, mp_data->data.p, (int)mp_data->data.len);
           last_uploaded = 0;
-          printf("USER: %s\n", user);
         }else if(strcmp(var_name, "pass") == 0){
           strncpy(pass, mp_data->data.p, (int)mp_data->data.len);
           last_uploaded = 0;
-          printf("PASS: %s\n", pass);
         }else if(strcmp(var_name, "session") == 0){
           strncpy(session_id, mp_data->data.p, (int)mp_data->data.len);
           last_uploaded = 0;
-          printf("SESSION: %s\n", session_id);
         }
+
+        if(strcmp(var_name, "file") == 0){
+          check_upload_credentials();
+          if((last_uploaded > 0) && ((mg_time() - last_uploaded) < UPLOAD_AUTH_TIMEOUT)){
+            mg_file_upload_handler(nc, ev, p, request_sanitizer);
+          }else{
+            mg_http_send_error(nc, 401, "Not authorized.");
+          }
+        }else{
+          mg_http_send_error(nc, 401, "Not authorized.");
+        }   
       }
-#endif
+      break;
+#endif        
+      
     case MG_EV_HTTP_PART_END:
+      {
 #ifdef LOGIN_SUPPORT
-      mg_file_upload_handler(nc, ev, p, request_sanitizer);
-      // upload_handler(nc, ev, p);   
+        if(strcmp(var_name, "file") == 0){
+          check_upload_credentials();
+          if((last_uploaded > 0) && ((mg_time() - last_uploaded) < UPLOAD_AUTH_TIMEOUT)){
+            mg_file_upload_handler(nc, ev, p, request_sanitizer);
+          }else{
+            mg_http_send_error(nc, 401, "Not authorized.");
+          }
+        }else{
+          mg_http_send_error(nc, 401, "Not authorized.");
+        }
 #else
-      mg_file_upload_handler(nc, ev, p, request_sanitizer);     
+        mg_file_upload_handler(nc, ev, p, request_sanitizer);     
 #endif
-      break;      
+      }
+      break;  
+    
   }
 }
 
