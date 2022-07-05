@@ -1,9 +1,13 @@
 #ifndef FILE_SERVER_SETTINGS
 #define FILE_SERVER_SETTINGS
 
+#define LOGIN_SUPPORT
+
 /* Rename this file to settings.h and adjust user credentials before the build. 
  * At the top of mongoose.h you can setup application name to set html title.
  */
+
+#ifdef LOGIN_SUPPORT
 
 /* Authenticated user.
  * A user can be authenticated by:
@@ -28,5 +32,6 @@ struct user users[] = {
     {"user2", "pass2"},
     {NULL, NULL},	// Do not remove. Used to detect end of user list
 };
+#endif
 
 #endif

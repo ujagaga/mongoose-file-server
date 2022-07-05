@@ -20,7 +20,7 @@ static const char SYS_ARCHIVE_EXT[] = ".tar.gz\" \"";
 static const char SYS_CMD_NEW_DIR[] = "mkdir \"";
 static const char SYS_CMD_RENAME[] = "mv \"";
 
-#define UPLOAD_AUTH_TIMEOUT   100    // Revoke authorization after this time in s since last file upload.
+#define UPLOAD_AUTH_TIMEOUT   1    // Revoke authorization after this time in s since last file upload.
 
 
 #ifdef LOGIN_SUPPORT
@@ -212,7 +212,7 @@ struct mg_str request_sanitizer(struct mg_connection *c, struct mg_str file_name
 
 static void request_handler(struct mg_connection *nc, int ev, void *p) {  
   struct http_message * hm = (struct http_message *) p;  
-  
+    
   switch (ev) {
     case MG_EV_HTTP_REQUEST:
       { 
@@ -377,7 +377,7 @@ static void request_handler(struct mg_connection *nc, int ev, void *p) {
       }
       break;
   /* File download section */
-    case MG_EV_HTTP_PART_BEGIN:    
+    case MG_EV_HTTP_PART_BEGIN: 
       {
 #ifdef LOGIN_SUPPORT
         struct mg_http_multipart_part *mp = (struct mg_http_multipart_part *) p;
@@ -392,7 +392,7 @@ static void request_handler(struct mg_connection *nc, int ev, void *p) {
 #endif
       }
       break;
-    case MG_EV_HTTP_PART_DATA:      
+    case MG_EV_HTTP_PART_DATA: 
 #ifdef LOGIN_SUPPORT
       { 
         struct mg_http_multipart_part *mp_data = (struct mg_http_multipart_part *) p;
@@ -415,22 +415,52 @@ static void request_handler(struct mg_connection *nc, int ev, void *p) {
         } 
       }
       break;
+      
 #endif              
     case MG_EV_HTTP_PART_END:
       {
         mg_file_upload_handler(nc, ev, p, request_sanitizer);
       }
-      break;      
-  }
+      break;   
+
+#ifdef LOGIN_SUPPORT
+    case MG_EV_HTTP_MULTIPART_REQUEST:
+      {
+        // Should be used for basic auth in future version. This one is broken.
+      }       
+      break;   
+#endif 
+  }  
 }
+
+static void usage(const char *prog) {
+  fprintf(stderr,
+          APP_NAME
+          "\n"
+          "Usage: %s OPTIONS\n"
+          "  -d DIR    - directory to serve, default: current dir\n"
+          "  -p PORT   - listening port, default: %s\n",
+          prog, s_http_port);
+  exit(EXIT_FAILURE);
+}
+
 
 int main(int argc, char **argv) {
   struct mg_mgr mgr;
   struct mg_connection *nc;
+  int i;
 
-  if(argc<2){
-    printf("Usage: %s <root dir> [<port>]\n", argv[0]);
-    return 1;
+  s_http_server_opts.document_root = ".";
+
+  // Parse command-line flags
+  for (i = 1; i < argc; i++) {
+    if (strcmp(argv[i], "-d") == 0) {
+      s_http_server_opts.document_root = argv[++i];
+    } else if (strcmp(argv[i], "-p") == 0) {
+      s_http_port = argv[++i];
+    } else {
+      usage(argv[0]);
+    }
   }
 
   signal(SIGINT, signal_handler);
@@ -438,23 +468,16 @@ int main(int argc, char **argv) {
 
   mg_mgr_init(&mgr, NULL);  
 
-  if(argc > 2){
-    /* Port also provided */
-    printf("Starting web server on http://localhost:%s\n", argv[2]);
-    nc = mg_bind(&mgr, argv[2], request_handler);
-  }else{
-    printf("Starting web server on http://localhost:%s\n", s_http_port);
-    nc = mg_bind(&mgr, s_http_port, request_handler);    
-  }  
-  
+  printf("Serving: '%s' on 'http://localhost:%s'\n", s_http_server_opts.document_root, s_http_port);
+  nc = mg_bind(&mgr, s_http_port, request_handler);    
+    
   if (nc == NULL) {
     printf("Failed to create listener\n");
     return 1;
   }
 
   // Set up HTTP server parameters
-  mg_set_protocol_http_websocket(nc);
-  s_http_server_opts.document_root = argv[1];    
+  mg_set_protocol_http_websocket(nc);      
   s_http_server_opts.enable_directory_listing = "yes";
 
   printf("Mongoose version: v%s\n", MG_VERSION);

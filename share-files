@@ -19,6 +19,6 @@ echo
 echo "Sharing files from: $CALL_DIR" 
 echo "URL: http://$firstip:8000"
 
-$SCRIPT_PATH/mongoose-fs $CALL_DIR
+$SCRIPT_PATH/ujagagafs $CALL_DIR
 
 
