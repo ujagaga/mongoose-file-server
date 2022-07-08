@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include "packed_html.h"
 #include "mongoose.h"
-#include "settings.h"
 
 
 static const char *s_http_port = "8000";
@@ -24,6 +23,30 @@ static const char SYS_CMD_RENAME[] = "mv \"";
 
 
 #ifdef LOGIN_SUPPORT
+/* Authenticated user.
+ * A user can be authenticated by:
+ *   - name:pass pair
+ *   - session id
+ * When a user is shown a login screen, he/she enters a user and pass. If successful,
+ * a server creates a session and returns session id embedded in a cookie. 
+ * From that point on, client can use the session id for authentication. 
+ */
+struct user {
+  const char *name; 
+  const char *pass; 
+};
+
+/* List of users.
+ * In production, make passwords strong.
+ * User list is kept in RAM. If using a large number of users, 
+ * they could be storred in file or database.
+ */ 
+struct user users[] = {
+    {"user1", "pass1"},
+    {"user2", "pass2"},
+    {NULL, NULL},	// Do not remove. Used to detect end of user list
+};
+
 /* This is the name of the cookie carrying the session ID. */
 #define SESSION_COOKIE_NAME "fssession"
 /* In our example sessions are destroyed after 30min of inactivity. */
@@ -212,6 +235,9 @@ struct mg_str request_sanitizer(struct mg_connection *c, struct mg_str file_name
 
 static void request_handler(struct mg_connection *nc, int ev, void *p) {  
   struct http_message * hm = (struct http_message *) p;  
+  // if(ev > 0){
+  //   printf("EV: %d\n", ev);
+  // }
     
   switch (ev) {
     case MG_EV_HTTP_REQUEST:
@@ -377,9 +403,16 @@ static void request_handler(struct mg_connection *nc, int ev, void *p) {
       }
       break;
   /* File download section */
+    case MG_EV_HTTP_MULTIPART_REQUEST:
+        {
+          // Should be used for basic auth in future version. This one is broken.
+          printf("MG_EV_HTTP_MULTIPART_REQUEST\n");
+        }       
+        break;
+#ifdef LOGIN_SUPPORT    
     case MG_EV_HTTP_PART_BEGIN: 
       {
-#ifdef LOGIN_SUPPORT
+
         struct mg_http_multipart_part *mp = (struct mg_http_multipart_part *) p;
         strncpy(var_name, mp->var_name, sizeof(var_name));
         
@@ -389,11 +422,9 @@ static void request_handler(struct mg_connection *nc, int ev, void *p) {
             mg_file_upload_handler(nc, ev, p, request_sanitizer);
           }
         }            
-#endif
       }
       break;
     case MG_EV_HTTP_PART_DATA: 
-#ifdef LOGIN_SUPPORT
       { 
         struct mg_http_multipart_part *mp_data = (struct mg_http_multipart_part *) p;
         if(strcmp(var_name, "user") == 0){
@@ -415,21 +446,21 @@ static void request_handler(struct mg_connection *nc, int ev, void *p) {
         } 
       }
       break;
-      
-#endif              
+#else
+    case MG_EV_HTTP_PART_BEGIN: 
+    case MG_EV_HTTP_PART_DATA: 
+#endif
     case MG_EV_HTTP_PART_END:
       {
         mg_file_upload_handler(nc, ev, p, request_sanitizer);
       }
-      break;   
+      break;
 
-#ifdef LOGIN_SUPPORT
-    case MG_EV_HTTP_MULTIPART_REQUEST:
+    case MG_EV_HTTP_MULTIPART_REQUEST_END:
       {
-        // Should be used for basic auth in future version. This one is broken.
+        printf("MG_EV_HTTP_MULTIPART_REQUEST_END\n");
       }       
       break;   
-#endif 
   }  
 }
 

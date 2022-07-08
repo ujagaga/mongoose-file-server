@@ -1,7 +1,8 @@
 #ifndef UJAGAGA_FS_HTML
 #define UJAGAGA_FS_HTML
 
-#define APP_NAME "Ujagaga File Server"
+#include "settings.h"
+
 
 #define FAVICON_ICO "data:image/png;base64,\
 iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAADAFBMVEUAAAAAADMAAGYAAJkAAMwAAP8AMwAAMzMAM2YAM5kAM8wAM/8AZg\
@@ -201,7 +202,11 @@ static const char upload_file_js[] = "<script>"
     "function unhighlight(e){dropArea.classList.remove('highlight')}"
     "function handleDrop(e){let dt=e.dataTransfer;fileObj=dt.files[0];uploadFile(fileObj);}\n"
     "function uploadFile(file){dropArea.innerHTML='Uploading <span class=\"animate\">'+file.name+'</span>';"
-    "let url='/upload';let formData=new FormData();formData.append('session',getCookie('fssession'));formData.append('file',fileObj);\n"
+    "let url='/upload';let formData=new FormData();"
+#ifdef LOGIN_SUPPORT
+    "formData.append('session',getCookie('fssession'));"
+#endif
+    "formData.append('file',fileObj);\n"
     "fetch(url,{method:'POST',body:formData}).then(()=>{window.location.reload(false);})\n"
     ".catch(()=>{dropArea.innerHTML='Error uploading file.';console.log('Error uploading file.');})}\n"      
     "function submitFile(){fileObj=fupld.files[0];uploadFile(fileObj);}"
