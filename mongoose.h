@@ -4884,7 +4884,7 @@ typedef struct mg_str (*mg_fu_fname_fn)(struct mg_connection *nc,
  * }
  * ```
  */
-void mg_file_upload_handler(struct mg_connection *nc, int ev, void *ev_data,
+void mg_file_upload_handler(struct mg_connection *nc, int ev, void *ev_data, const char* dst,
                             mg_fu_fname_fn local_name_fn
                                 MG_UD_ARG(void *user_data));
                                 

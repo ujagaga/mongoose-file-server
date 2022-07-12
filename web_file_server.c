@@ -18,6 +18,7 @@ static const char SYS_CMD_ARCHIVE[] = "tar -czf \"";
 static const char SYS_ARCHIVE_EXT[] = ".tar.gz\" \"";
 static const char SYS_CMD_NEW_DIR[] = "mkdir \"";
 static const char SYS_CMD_RENAME[] = "mv \"";
+static char abs_path[MG_MAX_PATH] = {0};
 
 #define UPLOAD_AUTH_TIMEOUT   1    // Revoke authorization after this time in s since last file upload.
 
@@ -235,13 +236,14 @@ struct mg_str request_sanitizer(struct mg_connection *c, struct mg_str file_name
 
 static void request_handler(struct mg_connection *nc, int ev, void *p) {  
   struct http_message * hm = (struct http_message *) p;  
-  // if(ev > 0){
-  //   printf("EV: %d\n", ev);
-  // }
+  // struct mg_http_multipart_part *mp = (struct mg_http_multipart_part *) p;
+
     
   switch (ev) {
     case MG_EV_HTTP_REQUEST:
       { 
+        printf("MG_EV_HTTP_REQUEST\n");
+
         char relative_path[MG_MAX_PATH] = {0};
         // HTML decode request url
         mg_url_decode(hm->uri.p, hm->uri.len, relative_path, hm->uri.len + 1, 1);         
@@ -406,14 +408,13 @@ static void request_handler(struct mg_connection *nc, int ev, void *p) {
     case MG_EV_HTTP_MULTIPART_REQUEST:
         {
           // Should be used for basic auth in future version. This one is broken.
-          printf("MG_EV_HTTP_MULTIPART_REQUEST\n");
+          strcpy(abs_path, s_http_server_opts.document_root);
+          strncat(abs_path, hm->uri.p, (int)hm->uri.len);
         }       
         break;
 #ifdef LOGIN_SUPPORT    
     case MG_EV_HTTP_PART_BEGIN: 
       {
-
-        struct mg_http_multipart_part *mp = (struct mg_http_multipart_part *) p;
         strncpy(var_name, mp->var_name, sizeof(var_name));
         
         if((strcmp(var_name, "file") == 0) && (last_uploaded == 0)){
@@ -426,15 +427,14 @@ static void request_handler(struct mg_connection *nc, int ev, void *p) {
       break;
     case MG_EV_HTTP_PART_DATA: 
       { 
-        struct mg_http_multipart_part *mp_data = (struct mg_http_multipart_part *) p;
         if(strcmp(var_name, "user") == 0){
-          strncpy(user, mp_data->data.p, (int)mp_data->data.len);
+          strncpy(user, mp->data.p, (int)mp->data.len);
           last_uploaded = 0;
         }else if(strcmp(var_name, "pass") == 0){
-          strncpy(pass, mp_data->data.p, (int)mp_data->data.len);
+          strncpy(pass, mp->data.p, (int)mp->data.len);
           last_uploaded = 0;
         }else if(strcmp(var_name, "session") == 0){
-          strncpy(session_id, mp_data->data.p, (int)mp_data->data.len);
+          strncpy(session_id, mp->data.p, (int)mp->data.len);
           last_uploaded = 0;
         }        
 
@@ -447,18 +447,17 @@ static void request_handler(struct mg_connection *nc, int ev, void *p) {
       }
       break;
 #else
-    case MG_EV_HTTP_PART_BEGIN: 
+    case MG_EV_HTTP_PART_BEGIN:      
     case MG_EV_HTTP_PART_DATA: 
 #endif
     case MG_EV_HTTP_PART_END:
       {
-        mg_file_upload_handler(nc, ev, p, request_sanitizer);
+        mg_file_upload_handler(nc, ev, p, abs_path, request_sanitizer);
       }
       break;
 
     case MG_EV_HTTP_MULTIPART_REQUEST_END:
       {
-        printf("MG_EV_HTTP_MULTIPART_REQUEST_END\n");
       }       
       break;   
   }  

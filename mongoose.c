@@ -7893,7 +7893,7 @@ void mg_serve_http(struct mg_connection *nc, struct http_message *hm,
 }
 
 #if MG_ENABLE_HTTP_STREAMING_MULTIPART
-void mg_file_upload_handler(struct mg_connection *nc, int ev, void *ev_data,
+void mg_file_upload_handler(struct mg_connection *nc, int ev, void *ev_data, const char* dst,
                             mg_fu_fname_fn local_name_fn
                                 MG_UD_ARG(void *user_data)) {
   switch (ev) {
@@ -7927,7 +7927,11 @@ void mg_file_upload_handler(struct mg_connection *nc, int ev, void *ev_data,
 
       char file_destination_path[MG_MAX_PATH] = {0};
 
-      strcpy(file_destination_path, relative_path);
+      strcpy(file_destination_path, dst);
+      int dstLen = strlen(dst);
+      if(dst[dstLen - 1] != '/'){
+        strcat(file_destination_path, "/");
+      }
       strcat(file_destination_path, fus->lfn);
       // printf("---DST:%s\n", file_destination_path);
 
