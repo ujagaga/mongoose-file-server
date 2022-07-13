@@ -20,8 +20,7 @@ static const char SYS_CMD_NEW_DIR[] = "mkdir \"";
 static const char SYS_CMD_RENAME[] = "mv \"";
 static char abs_path[MG_MAX_PATH] = {0};
 
-#define UPLOAD_AUTH_TIMEOUT   1    // Revoke authorization after this time in s since last file upload.
-
+#define UPLOAD_AUTH_TIMEOUT   1    // Revoke authorization after 1s
 
 #ifdef LOGIN_SUPPORT
 /* Authenticated user.
