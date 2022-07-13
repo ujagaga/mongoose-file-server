@@ -71,7 +71,7 @@ struct session {
 struct session s_sessions[NUM_SESSIONS];
 
 /* Variables to support file upload from form or curl. */
-char user[50] = {0}, pass[50] = {0}, var_name[50], session_id[21] = {0};
+char user[50] = {0}, pass[50] = {0}, session_id[21] = {0};
 double last_uploaded = 0;   // Timestamp when uploading files to support upload with user and pass
 
 static int check_pass(const char *user, const char *pass) {
@@ -164,7 +164,7 @@ static struct session *create_session(const char *user, const struct http_messag
   }
   if (s == NULL) {
     destroy_session(oldest_s);
-    printf("Evicted %lx/%s\n", oldest_s->id, oldest_s->user);
+    //printf("Evicted %lx/%s\n", oldest_s->id, oldest_s->user);
     s = oldest_s;
   }
   /* Initialize new session. */
@@ -193,7 +193,7 @@ static void logout_handler(struct mg_connection *c, struct http_message *hm) {
             SESSION_COOKIE_NAME);
   struct session *s = get_session(hm);
   if (s != NULL) {
-    fprintf(stderr, "%s logged out, session %lx destroyed\n", s->user, s->id);
+    printf("%s logged out, session %lx destroyed\n", s->user, s->id);
     destroy_session(s);
   }
 }
@@ -204,7 +204,7 @@ void check_sessions() {
   for (int i = 0; i < NUM_SESSIONS; i++) {
     struct session *s = &s_sessions[i];
     if (s->id != 0 && s->last_used < threshold) {
-      fprintf(stderr, "Session %ld (%s) closed due to idleness.\n", s->id, s->user);
+      printf("Session %ld (%s) closed due to idleness.\n", s->id, s->user);
       destroy_session(s);
     }
   }
@@ -236,14 +236,10 @@ struct mg_str request_sanitizer(struct mg_connection *c, struct mg_str file_name
 
 static void request_handler(struct mg_connection *nc, int ev, void *p) {  
   struct http_message * hm = (struct http_message *) p;  
-  // struct mg_http_multipart_part *mp = (struct mg_http_multipart_part *) p;
-
     
   switch (ev) {
     case MG_EV_HTTP_REQUEST:
       { 
-        printf("MG_EV_HTTP_REQUEST\n");
-
         char relative_path[MG_MAX_PATH] = {0};
         // HTML decode request url
         mg_url_decode(hm->uri.p, hm->uri.len, relative_path, hm->uri.len + 1, 1);         
@@ -279,7 +275,7 @@ static void request_handler(struct mg_connection *nc, int ev, void *p) {
                 mg_printf(nc, "Set-Cookie: %s=%lx; path=/\r\n", SESSION_COOKIE_NAME, s->id);   
 
                 mg_printf(nc, "Location: /\r\n\r\n");
-                fprintf(stderr, "%s logged in, sid %lX\n", s->user, s->id);
+                printf("%s logged in, sid %lX\n", s->user, s->id);
               } else {
                 sprintf(page_html, login_html, "ERROR: Wrong username or password.");
                 mg_http_reply(nc, 200, "", page_html);
@@ -387,7 +383,7 @@ static void request_handler(struct mg_connection *nc, int ev, void *p) {
               strcat(syscmd, target);
               strcat(syscmd, "\"");
 
-              printf("SYS_CMD: %s\n", syscmd);
+              //printf("SYS_CMD: %s\n", syscmd);
               ret = system(syscmd);
               if(ret == 0){
                 mg_http_reply(nc, 200, "", "Done");
@@ -407,52 +403,66 @@ static void request_handler(struct mg_connection *nc, int ev, void *p) {
   /* File download section */
     case MG_EV_HTTP_MULTIPART_REQUEST:
         {
-          // Should be used for basic auth in future version. This one is broken.
           strcpy(abs_path, s_http_server_opts.document_root);
-          strncat(abs_path, hm->uri.p, (int)hm->uri.len);
+          strncat(abs_path, hm->uri.p, (int)hm->uri.len); 
+#ifdef LOGIN_SUPPORT 
+          last_uploaded = 0;
+          user[0] = 0;
+          pass[0] = 0;  
+#endif        
         }       
         break;
-#ifdef LOGIN_SUPPORT    
     case MG_EV_HTTP_PART_BEGIN: 
-      {
-        strncpy(var_name, mp->var_name, sizeof(var_name));
-        
-        if((strcmp(var_name, "file") == 0) && (last_uploaded == 0)){
-          check_upload_credentials();
-          if(last_uploaded > 0){
-            mg_file_upload_handler(nc, ev, p, request_sanitizer);
-          }
-        }            
-      }
-      break;
     case MG_EV_HTTP_PART_DATA: 
-      { 
-        if(strcmp(var_name, "user") == 0){
-          strncpy(user, mp->data.p, (int)mp->data.len);
-          last_uploaded = 0;
-        }else if(strcmp(var_name, "pass") == 0){
-          strncpy(pass, mp->data.p, (int)mp->data.len);
-          last_uploaded = 0;
-        }else if(strcmp(var_name, "session") == 0){
-          strncpy(session_id, mp->data.p, (int)mp->data.len);
-          last_uploaded = 0;
-        }        
-
-        if(strcmp(var_name, "file") == 0){
-          check_upload_credentials();
-          if((last_uploaded > 0) && ((mg_time() - last_uploaded) < UPLOAD_AUTH_TIMEOUT)){
-            mg_file_upload_handler(nc, ev, p, request_sanitizer);            
-          }
-        } 
-      }
-      break;
-#else
-    case MG_EV_HTTP_PART_BEGIN:      
-    case MG_EV_HTTP_PART_DATA: 
-#endif
     case MG_EV_HTTP_PART_END:
       {
+#ifdef LOGIN_SUPPORT 
+        struct mg_http_multipart_part *mp = (struct mg_http_multipart_part *) p;
+
+        if(strcmp(mp->var_name, "file") == 0){           
+          if((last_uploaded > 0) && ((mg_time() - last_uploaded) < UPLOAD_AUTH_TIMEOUT)){
+            mg_file_upload_handler(nc, ev, p, abs_path, request_sanitizer);
+            // Refresh authentication
+            check_upload_credentials();
+          }else{
+            nc->flags |= MG_F_SEND_AND_CLOSE;
+            char* errMsg;
+            if((user[0] == 0) || (pass[0] == 0)){
+              errMsg = "ERROR: Please provide a valid user name and password!\r\n";
+            }else{
+              errMsg = "ERROR: Invalid user name or password!\r\n";
+            }
+            mg_http_reply(nc, 401, "Connection: close\r\n\r\n", errMsg);                 
+          }
+        }else{
+
+          if((int)mp->data.len > 0){
+            // printf("MG_EV_HTTP_PART_END VarName: %s=%.*s\n", mp->var_name, (int)mp->data.len, mp->data.p);
+            if(strcmp(mp->var_name, "user") == 0){
+              strncpy(user, mp->data.p, (int)mp->data.len);
+              user[(int)mp->data.len] = 0;
+            }else if(strcmp(mp->var_name, "pass") == 0){
+              strncpy(pass, mp->data.p, (int)mp->data.len);
+              pass[(int)mp->data.len] = 0;
+            }else if(strcmp(mp->var_name, "session") == 0){
+              strncpy(session_id, mp->data.p, (int)mp->data.len);
+              session_id[(int)mp->data.len] = 0;
+            }else if(strcmp(mp->var_name, "dst") == 0){
+              int abs_path_len = strlen(abs_path);
+              if(abs_path[abs_path_len - 1] != '/'){
+                abs_path[abs_path_len] = '/';
+                abs_path[abs_path_len + 1] = 0;
+              }
+
+              strncat(abs_path, mp->data.p, (int)mp->data.len);
+              abs_path[abs_path_len + 1 + (int)mp->data.len] = 0;
+            }
+            check_upload_credentials();
+          }
+        }
+#else
         mg_file_upload_handler(nc, ev, p, abs_path, request_sanitizer);
+#endif
       }
       break;
 
@@ -502,7 +512,7 @@ int main(int argc, char **argv) {
   nc = mg_bind(&mgr, s_http_port, request_handler);    
     
   if (nc == NULL) {
-    printf("Failed to create listener\n");
+    fprintf(stderr, "Failed to create listener\n");
     return 1;
   }
 
