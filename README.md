@@ -10,8 +10,8 @@ Additions in comparesment to the original:
 # Building
 I only created a "build.sh" to help build on linux, but mongoose does work on Windows and MacOs, so please refer to original repository to see how.
 If you need to run it on a platform other than linux, you will need to adjust the system commands for context menu at the start of the web_file_server.c.  
-Before you build the app, rename settings.h.example to settings.h and configure the application name and login support.
-If you do want the login support, in web_file_server.c find users[] array and adjust as many users and passwords as you wish. Keep in mind that this info is saved in RAM, so if you plan on using a large number of user accounts, you should add support for a database or at least an external text file based configuration.
+Before you build the app, please review the settings.h. if you want the login support, rename credentials.h.example to credentials.h and configure the login credentials. 
+Keep in mind that user account info is saved in RAM, so if you plan on using a large number of user accounts, you should add support for a database or at least an external text file based configuration.
 After that run:
 
     ./build.sh [app name]

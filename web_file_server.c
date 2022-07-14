@@ -23,29 +23,7 @@ static char abs_path[MG_MAX_PATH] = {0};
 #define UPLOAD_AUTH_TIMEOUT   1    // Revoke authorization after 1s
 
 #ifdef LOGIN_SUPPORT
-/* Authenticated user.
- * A user can be authenticated by:
- *   - name:pass pair
- *   - session id
- * When a user is shown a login screen, he/she enters a user and pass. If successful,
- * a server creates a session and returns session id embedded in a cookie. 
- * From that point on, client can use the session id for authentication. 
- */
-struct user {
-  const char *name; 
-  const char *pass; 
-};
-
-/* List of users.
- * In production, make passwords strong.
- * User list is kept in RAM. If using a large number of users, 
- * they could be storred in file or database.
- */ 
-struct user users[] = {
-    {"user1", "pass1"},
-    {"user2", "pass2"},
-    {NULL, NULL},	// Do not remove. Used to detect end of user list
-};
+#include "credentials.h"
 
 /* This is the name of the cookie carrying the session ID. */
 #define SESSION_COOKIE_NAME "fssession"
