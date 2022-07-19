@@ -7294,8 +7294,9 @@ static void mg_send_directory_listing(struct mg_connection *nc, const char *dir,
 
   mg_scan_directory(nc, dir, opts, mg_print_dir_entry);
   mg_printf_http_chunk(nc,
-                       "</tbody></table>\n"                       
-                       "</body>\n%s%s%s\n</html>", upload_file_js, sort_table_js, menu_js);
+                       "</tbody></table>\n"   
+                       "<p id='statusbar'></p>"                    
+                       "</body>\n%s%s%s%s\n</html>", upload_file_js, sort_table_js, menu_js, session_js);
   mg_send_http_chunk(nc, "", 0);
   /* TODO(rojer): Remove when cesanta/dev/issues/197 is fixed. */
   nc->flags |= MG_F_SEND_AND_CLOSE;

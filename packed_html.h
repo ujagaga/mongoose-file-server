@@ -78,7 +78,8 @@ static const char about_html[] = "<!DOCTYPE html><html lang='en'>"
     "<p>To upload using the <b>curl</b> utillity, please provide file name, and user credentials:</p>"
     "<p class='code'>curl -H \"Transfer-Encoding: chunked\" -v -F user=[user name] -F pass=[password] -F file=@[file name] [server url]/[destination path]?name=[upload as file name]</p>"
     "<p>Destination path can be provided either as url (like above) or as a form parameter:</p>"
-    "<p class='code'>curl -H \"Transfer-Encoding: chunked\" -v -F user=[user name] -F pass=[password] <b>-F dst=[upload dir]</b> -F file=@[file name] [server url]?name=[upload as file name]</p>"
+    "<p class='code'>curl -H \"Transfer-Encoding: chunked\" -v -F session=[session id] <b>-F dst=[upload dir]</b> -F file=@[file name] [server url]?name=[upload as file name]</p>"
+    "<p>Instead of the name and password, you can also use the session id.</p>"
     "<h2>File Download</h2>"
     "<p>To download a whole folder, use the context menu to archive the selected folder and then download the archive.</p>"
     "</div></body></html>\n\n";
@@ -231,7 +232,7 @@ static const char upload_file_js[] = "<script>"
 
 static const char main_style_css[] = "<style>"
     "body{font-family:Arial;background:#F5F5F5;color:#242424;padding-top:2em;}"
-    "table{margin-top:10px;width:100%;}"
+    "table{margin:10px 5px 20px 5px;width:100%;}"
     "th,td{text-align:left;padding-right:1em;font-family:monospace;}"
     "th a, td a{color:#242424;text-decoration:none;}"   
     "td a{font-weight:bold;}"     
@@ -251,6 +252,7 @@ static const char main_style_css[] = "<style>"
     "@keyframes load { 0%{ opacity:0.08;filter:blur(5px);letter-spacing:3px;}}"
     ".animate{animation:load 1.2s infinite 0s ease-in-out;animation-direction: alternate;}"
     "#progbar{border-top:5px solid #dadada;width:1px;}"
+    "#statusbar{width:100vw;height:20px;font-size:12px;margin:0;padding:4px 0 3px 20px;background-color:#242424;color:#F5F5F5;position:fixed;bottom:0;left:0;}"
     "</style>";
 
 
@@ -306,6 +308,12 @@ static const char toolbar_css[] = "<style>"
     ".tool-btn:hover{opacity:1;}"
     ".tool-btn img{width:24px;height:24px;}"
     "#loc-path{margin:1px 1px 1px 10px;font-size:24px;line-height:26px;padding:0;}"
-    "</style>";    
+    "</style>"; 
+
+static const char session_js[] = "<script>"    
+    "var session_id=getCookie('fssession');"
+    "var statusbar=document.getElementById('statusbar');"
+    "statusbar.innerHTML='Session id: ' + session_id;"
+    "</script>";     
 
 #endif
