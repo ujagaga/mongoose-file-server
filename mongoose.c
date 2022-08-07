@@ -7205,7 +7205,7 @@ static void mg_print_dir_entry(struct mg_connection *nc, const char *file_name,
   mg_escape(file_name, path, sizeof(path));
   href = mg_url_encode(mg_mk_str(file_name));
   mg_printf_http_chunk(nc,
-                       "<tr><td><a href=\"%s%s\">%s%s</a></td>"
+                       "<tr><td><a href=\"%s%s\" download>%s%s</a></td>"
                        "<td>%s</td><td name=%" INT64_FMT ">%s</td></tr>\n",
                        href.p, slash, path, slash, mod, is_dir ? -1 : fsize,
                        size);
