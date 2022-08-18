@@ -13,6 +13,7 @@ static const char HTTP_CMD_ARCHIVE[] = "archive";
 static const char HTTP_CMD_NEW_DIR[] = "newdir";
 static const char HTTP_CMD_RENAME[] = "rename";
 static const char HTTP_PARAM_NAME[] = "name";
+static const char HTTP_PARAM_DST[] = "destination";
 static const char SYS_CMD_DEL[] = "rm -rf \"";
 static const char SYS_CMD_ARCHIVE[] = "tar -czf \"";
 static const char SYS_ARCHIVE_EXT[] = ".tar.gz\" \"";
@@ -213,6 +214,7 @@ struct mg_str request_sanitizer(struct mg_connection *c, struct mg_str file_name
 
 static void request_handler(struct mg_connection *nc, int ev, void *p) {  
   struct http_message * hm = (struct http_message *) p;  
+  int ret;
     
   switch (ev) {
     case MG_EV_HTTP_REQUEST:
@@ -251,7 +253,13 @@ static void request_handler(struct mg_connection *nc, int ev, void *p) {
 
                 mg_printf(nc, "Set-Cookie: %s=%lx; path=/\r\n", SESSION_COOKIE_NAME, s->id);   
 
-                mg_printf(nc, "Location: /\r\n\r\n");
+                char destination[MG_MAX_PATH] = {0};
+                ret = mg_get_http_var(&(hm->message), HTTP_PARAM_DST, destination, sizeof(destination));
+                if(ret> 0){
+                  mg_printf(nc, "Location: %s\r\n\r\n", destination);
+                }else{
+                  mg_printf(nc, "Location: /\r\n\r\n");
+                }
                 printf("%s logged in, sid %lX\n", s->user, s->id);
               } else {
                 sprintf(page_html, login_html, "ERROR: Wrong username or password.");
@@ -266,11 +274,14 @@ static void request_handler(struct mg_connection *nc, int ev, void *p) {
           struct session *s = get_session(hm);
           /* Ask the user to log in if they did not present a valid cookie. */
           if (s == NULL) {
-            mg_printf(nc, "HTTP/1.0 302 Found\r\nLocation: /login.html\r\n\r\n");      
+            if (strcmp(relative_path, "/") == 0){
+              mg_printf(nc, "HTTP/1.0 302 Found\r\nLocation: /login.html\r\n\r\n"); 
+            }else{
+              mg_printf(nc, "HTTP/1.0 302 Found\r\nLocation: /login.html?destination=%s&\r\n\r\n", relative_path);
+            }               
           
 #endif          //LOGIN_SUPPORT
-          }else{
-            int ret;
+          }else{            
             char target[MG_MAX_PATH] = {0};
             char abs_path[MG_MAX_PATH] = {0};   
             char syscmd[MG_MAX_PATH] = {0};   
